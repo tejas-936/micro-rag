@@ -1,0 +1,1309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NumPy RAG Prototype</title>
+    <!-- Marked.js for Markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap');
+        
+        :root {
+            --bg-color: #0b0f19;
+            --container-bg: rgba(17, 24, 39, 0.7);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-primary: #f3f4f6;
+            --text-secondary: #9ca3af;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --user-msg-bg: rgba(59, 130, 246, 0.15);
+            --bot-msg-bg: rgba(255, 255, 255, 0.03);
+            --danger-bg: rgba(239, 68, 68, 0.15);
+            --danger-hover: #dc2626;
+            --success-color: #10b981;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.12), transparent 30%),
+                radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.12), transparent 30%);
+        }
+
+        /* Layout Container - FIXED HEIGHT */
+        .app-container {
+            display: flex;
+            gap: 1.5rem;
+            width: 95%;
+            max-width: 1100px;
+            height: 92vh;
+            max-height: 850px;
+            min-height: 600px;
+            margin: 2rem;
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        /* Sidebar panel - FIXED WIDTH, NEVER SHRINKS */
+        .sidebar {
+            width: 320px;
+            min-width: 320px;
+            flex-shrink: 0;
+            background: var(--container-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 1.5rem;
+            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.7);
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            overflow: hidden;
+        }
+
+        /* Main Chat panel - FILLS REMAINING SPACE */
+        .main-chat-container {
+            flex: 1;
+            min-width: 0;
+            background: var(--container-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 1.5rem;
+            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.7);
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            overflow: hidden;
+        }
+
+        h1, h2 {
+            font-family: 'Outfit', sans-serif;
+            margin: 0;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        h1 {
+            font-size: 1.6rem;
+            background: linear-gradient(to right, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-align: center;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        h2 {
+            font-size: 1.1rem;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* ---- API Key Section ---- */
+        .api-key-section {
+            flex-shrink: 0;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: all 0.2s;
+        }
+
+        .api-key-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.6rem 0.75rem;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            user-select: none;
+            transition: background 0.2s;
+        }
+
+        .api-key-header:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .api-key-header .chevron {
+            transition: transform 0.2s;
+            margin-left: auto;
+        }
+
+        .api-key-header.open .chevron {
+            transform: rotate(180deg);
+        }
+
+        .api-key-body {
+            display: none;
+            padding: 0 0.75rem 0.75rem;
+        }
+
+        .api-key-body.open {
+            display: block;
+        }
+
+        .api-key-input-row {
+            display: flex;
+            gap: 0.4rem;
+        }
+
+        .api-key-input-row input {
+            flex: 1;
+            padding: 0.45rem 0.65rem;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background: rgba(15, 23, 42, 0.4);
+            color: var(--text-primary);
+            font-size: 0.8rem;
+            font-family: monospace;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .api-key-input-row input:focus {
+            border-color: var(--accent);
+        }
+
+        .api-key-save-btn {
+            padding: 0.45rem 0.7rem;
+            border-radius: 8px;
+            border: none;
+            background: var(--accent);
+            color: white;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            white-space: nowrap;
+        }
+
+        .api-key-save-btn:hover { background: var(--accent-hover); }
+
+        .api-key-hint {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            margin-top: 0.4rem;
+            line-height: 1.4;
+        }
+
+        /* Drag & Drop Upload Zone */
+        .upload-zone {
+            flex-shrink: 0;
+            border: 2px dashed rgba(59, 130, 246, 0.3);
+            border-radius: 16px;
+            padding: 1rem 0.75rem;
+            text-align: center;
+            background: rgba(15, 23, 42, 0.3);
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .upload-zone:hover, .upload-zone.dragover {
+            border-color: var(--accent);
+            background: rgba(59, 130, 246, 0.08);
+            transform: translateY(-2px);
+        }
+
+        .upload-icon {
+            width: 32px;
+            height: 32px;
+            color: var(--accent);
+            opacity: 0.8;
+        }
+
+        .upload-text {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .upload-text span {
+            color: #60a5fa;
+            text-decoration: underline;
+        }
+
+        .upload-subtext {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        /* File List Container */
+        .file-list-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .file-list-header {
+            flex-shrink: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 0 4px;
+        }
+
+        .file-count {
+            background: rgba(255, 255, 255, 0.08);
+            padding: 2px 8px;
+            border-radius: 9999px;
+            font-size: 0.7rem;
+            color: var(--text-primary);
+        }
+
+        .file-list {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            padding-right: 4px;
+        }
+
+        .file-list::-webkit-scrollbar { width: 5px; }
+        .file-list::-webkit-scrollbar-track { background: transparent; }
+        .file-list::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 10px; }
+
+        /* File List Items */
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 0.6rem 0.85rem;
+            transition: all 0.2s;
+            animation: slideInLeft 0.2s ease-out;
+            flex-shrink: 0;
+        }
+
+        .file-item:hover {
+            background: rgba(255, 255, 255, 0.04);
+            border-color: rgba(59, 130, 246, 0.25);
+        }
+
+        .file-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+        }
+
+        .file-name {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .file-size {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .delete-btn {
+            background: transparent;
+            border: none;
+            padding: 6px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .delete-btn:hover {
+            color: #ef4444;
+            background: var(--danger-bg);
+        }
+
+        /* Chat Area styles - SCROLLABLE, FILLS REMAINING SPACE */
+        .chat-area {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            padding-right: 8px;
+        }
+
+        .chat-area::-webkit-scrollbar { width: 5px; }
+        .chat-area::-webkit-scrollbar-track { background: transparent; }
+        .chat-area::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 10px; }
+
+        .message {
+            padding: 1rem 1.25rem;
+            border-radius: 16px;
+            line-height: 1.6;
+            animation: fadeIn 0.3s ease-out;
+            word-wrap: break-word;
+            font-size: 0.95rem;
+            flex-shrink: 0;
+        }
+
+        .user-message {
+            background: var(--user-msg-bg);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            align-self: flex-end;
+            max-width: 80%;
+            border-bottom-right-radius: 4px;
+        }
+
+        .bot-message {
+            background: var(--bot-msg-bg);
+            border: 1px solid var(--border-color);
+            align-self: flex-start;
+            max-width: 85%;
+            border-bottom-left-radius: 4px;
+        }
+
+        /* Markdown rendered content inside bot messages */
+        .bot-message .md-content h1,
+        .bot-message .md-content h2,
+        .bot-message .md-content h3,
+        .bot-message .md-content h4 {
+            font-family: 'Outfit', sans-serif;
+            margin: 0.6em 0 0.3em;
+            color: var(--text-primary);
+            -webkit-text-fill-color: var(--text-primary);
+            background: none;
+            -webkit-background-clip: unset;
+        }
+
+        .bot-message .md-content h1 { font-size: 1.2rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.3em; }
+        .bot-message .md-content h2 { font-size: 1.1rem; }
+        .bot-message .md-content h3 { font-size: 1rem; }
+
+        .bot-message .md-content p {
+            margin: 0.4em 0;
+        }
+
+        .bot-message .md-content ul,
+        .bot-message .md-content ol {
+            margin: 0.4em 0;
+            padding-left: 1.5em;
+        }
+
+        .bot-message .md-content li {
+            margin: 0.2em 0;
+        }
+
+        .bot-message .md-content code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 0.15em 0.4em;
+            border-radius: 4px;
+            font-size: 0.85em;
+            color: #e2e8f0;
+        }
+
+        .bot-message .md-content pre {
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            overflow-x: auto;
+            margin: 0.5em 0;
+        }
+
+        .bot-message .md-content pre code {
+            background: none;
+            padding: 0;
+            font-size: 0.85rem;
+            color: #e2e8f0;
+        }
+
+        .bot-message .md-content strong {
+            color: #f9fafb;
+        }
+
+        .bot-message .md-content blockquote {
+            border-left: 3px solid var(--accent);
+            margin: 0.5em 0;
+            padding: 0.3em 0.8em;
+            color: var(--text-secondary);
+            background: rgba(59, 130, 246, 0.05);
+            border-radius: 0 6px 6px 0;
+        }
+
+        .bot-message .md-content table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 0.5em 0;
+            font-size: 0.85rem;
+        }
+
+        .bot-message .md-content th,
+        .bot-message .md-content td {
+            border: 1px solid var(--border-color);
+            padding: 0.4em 0.6em;
+            text-align: left;
+        }
+
+        .bot-message .md-content th {
+            background: rgba(255, 255, 255, 0.05);
+            font-weight: 600;
+        }
+
+        /* Input area - FIXED at bottom */
+        .input-area {
+            flex-shrink: 0;
+            display: flex;
+            gap: 0.75rem;
+            position: relative;
+        }
+
+        input[type="text"] {
+            flex-grow: 1;
+            padding: 0.85rem 1.25rem;
+            border-radius: 9999px;
+            border: 1px solid var(--border-color);
+            background: rgba(15, 23, 42, 0.4);
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+        }
+
+        button.send-btn {
+            padding: 0 1.5rem;
+            border-radius: 9999px;
+            border: none;
+            background: var(--accent);
+            color: white;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        button.send-btn:hover { background: var(--accent-hover); }
+        button.send-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .sources {
+            margin-top: 0.75rem;
+            font-size: 0.8rem;
+        }
+
+        details {
+            background: rgba(0,0,0,0.25);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+        }
+
+        summary {
+            padding: 0.6rem 0.85rem;
+            cursor: pointer;
+            font-weight: 500;
+            color: var(--text-secondary);
+            user-select: none;
+            transition: background 0.2s;
+        }
+
+        summary:hover { background: rgba(255,255,255,0.03); }
+
+        .source-content {
+            padding: 0.85rem;
+            border-top: 1px solid var(--border-color);
+            color: #d1d5db;
+            font-family: monospace;
+            font-size: 0.8rem;
+            white-space: pre-wrap;
+            background: rgba(0,0,0,0.2);
+        }
+
+        .chunk {
+            margin-bottom: 0.85rem;
+            padding-bottom: 0.85rem;
+            border-bottom: 1px dashed var(--border-color);
+        }
+        .chunk:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+
+        .score {
+            display: inline-block;
+            background: var(--accent);
+            color: white;
+            padding: 1px 5px;
+            border-radius: 4px;
+            font-size: 0.65rem;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+
+        .loader {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 2.5px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        /* Model Selector Bar - FIXED at bottom of chat */
+        .model-bar {
+            flex-shrink: 0;
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            padding: 0.5rem 0.75rem;
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            flex-wrap: wrap;
+        }
+
+        .model-bar label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            white-space: nowrap;
+        }
+
+        .model-bar select {
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.4rem 0.6rem;
+            font-size: 0.85rem;
+            font-family: 'Inter', sans-serif;
+            outline: none;
+            cursor: pointer;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            appearance: auto;
+        }
+
+        .model-bar select:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+        }
+
+        .model-bar select option {
+            background: #1e293b;
+            color: var(--text-primary);
+        }
+
+        /* Toggle Switch for Smart Search */
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            margin-left: 0.5rem;
+            cursor: pointer;
+        }
+
+        .toggle-container label {
+            cursor: pointer;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 32px;
+            height: 18px;
+        }
+
+        .switch input { 
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(255,255,255,0.1);
+            transition: .3s;
+            border-radius: 34px;
+            border: 1px solid var(--border-color);
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 12px;
+            width: 12px;
+            left: 2px;
+            bottom: 2px;
+            background-color: var(--text-secondary);
+            transition: .3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: rgba(59, 130, 246, 0.3);
+            border-color: var(--accent);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(14px);
+            background-color: var(--accent);
+        }
+
+        .refresh-btn {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            border-radius: 8px;
+            padding: 0.35rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .refresh-btn:hover {
+            color: var(--accent);
+            border-color: var(--accent);
+            background: rgba(59, 130, 246, 0.08);
+        }
+
+        .refresh-btn.spinning svg {
+            animation: spin 0.6s linear;
+        }
+
+        .model-status {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-left: auto;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .status-dot.online { background: var(--success-color); }
+        .status-dot.offline { background: #ef4444; }
+
+        /* Toast Container */
+        .toast-container {
+            position: fixed;
+            bottom: 1.5rem;
+            right: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            z-index: 9999;
+        }
+
+        .toast {
+            background: #1e293b;
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 0.75rem 1.25rem;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+            animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            min-width: 220px;
+        }
+
+        .toast.success { border-left: 4px solid var(--success-color); }
+        .toast.error { border-left: 4px solid #ef4444; }
+
+        /* Animations */
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideInRight { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes slideInLeft { from { transform: translateX(-15%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        /* Responsive Layout styling */
+        @media (max-width: 800px) {
+            .app-container {
+                flex-direction: column;
+                height: auto;
+                max-height: none;
+                margin: 1rem;
+            }
+            .sidebar {
+                width: auto;
+                min-width: auto;
+                height: 350px;
+            }
+            .main-chat-container {
+                height: 500px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <!-- Sidebar for Document Management -->
+    <div class="sidebar">
+        <h2>
+            <svg style="width: 22px; height: 22px; color: var(--accent);" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"></path>
+            </svg>
+            Documents
+        </h2>
+
+        <!-- OpenAI API Key Section -->
+        <div class="api-key-section" id="apiKeySection">
+            <div class="api-key-header" id="apiKeyHeader">
+                <svg style="width: 14px; height: 14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg>
+                OpenAI API Key
+                <svg class="chevron" style="width: 14px; height: 14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+            </div>
+            <div class="api-key-body" id="apiKeyBody">
+                <div class="api-key-input-row">
+                    <input type="password" id="apiKeyInput" placeholder="sk-..." autocomplete="off">
+                    <button class="api-key-save-btn" id="apiKeySaveBtn">Save</button>
+                </div>
+                <div class="api-key-hint">Saved to server &amp; persisted to api_key.txt. Only needed for OpenAI provider.</div>
+            </div>
+        </div>
+        
+        <!-- Drag & Drop Upload Zone -->
+        <div class="upload-zone" id="uploadZone">
+            <svg class="upload-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+            </svg>
+            <div class="upload-text">Drag & drop or <span>browse</span></div>
+            <div class="upload-subtext">Supports .txt, .md (max 5MB)</div>
+            <input type="file" id="fileInput" multiple accept=".txt,.md" style="display: none;">
+        </div>
+
+        <!-- Files list -->
+        <div class="file-list-container">
+            <div class="file-list-header">
+                <span>Indexed Files</span>
+                <span class="file-count" id="fileCount">0</span>
+            </div>
+            <div class="file-list" id="fileList">
+                <div style="color: var(--text-secondary); text-align: center; margin-top: 2rem; font-size: 0.85rem;">Loading files...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Chat Window -->
+    <div class="main-chat-container">
+        <h1>RAG</h1>
+        
+        <div class="chat-area" id="chatArea">
+            <div class="message bot-message">
+                <div class="md-content">How may I assist you today with your uploaded files?</div>
+            </div>
+        </div>
+
+        <div class="model-bar" id="modelBar">
+            <label for="providerSelect">Provider:</label>
+            <select id="providerSelect">
+                <option value="ollama">Ollama (Local)</option>
+                <option value="openai">OpenAI (Cloud)</option>
+            </select>
+            <label for="modelSelect">Model:</label>
+            <select id="modelSelect">
+                <option value="" disabled selected>Loading...</option>
+            </select>
+            <button class="refresh-btn" id="refreshModelsBtn" title="Refresh model list">
+                <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+            </button>
+            <div class="toggle-container" title="Use LLM to expand query for better search results">
+                <label class="switch">
+                    <input type="checkbox" id="smartSearchToggle">
+                    <span class="slider"></span>
+                </label>
+                <label for="smartSearchToggle">Smart Search</label>
+            </div>
+            <span class="model-status" id="modelStatus"></span>
+        </div>
+
+        <form class="input-area" id="queryForm">
+            <input type="text" id="queryInput" placeholder="Ask something about the documents..." autocomplete="off" required>
+            <button type="submit" id="submitBtn" class="send-btn">
+                <span id="btnText">Send</span>
+                <div class="loader" id="loader"></div>
+            </button>
+        </form>
+    </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+    // Configure marked for safe rendering
+    marked.setOptions({
+        breaks: true,
+        gfm: true
+    });
+
+    const form = document.getElementById('queryForm');
+    const input = document.getElementById('queryInput');
+    const chatArea = document.getElementById('chatArea');
+    const submitBtn = document.getElementById('submitBtn');
+    const btnText = document.getElementById('btnText');
+    const loader = document.getElementById('loader');
+
+    // Upload & Document variables
+    const uploadZone = document.getElementById('uploadZone');
+    const fileInput = document.getElementById('fileInput');
+    const fileList = document.getElementById('fileList');
+    const fileCount = document.getElementById('fileCount');
+    const toastContainer = document.getElementById('toastContainer');
+
+    const providerSelect = document.getElementById('providerSelect');
+    const modelSelect = document.getElementById('modelSelect');
+    const refreshModelsBtn = document.getElementById('refreshModelsBtn');
+    const modelStatus = document.getElementById('modelStatus');
+    const smartSearchToggle = document.getElementById('smartSearchToggle');
+
+    // API Key elements
+    const apiKeyHeader = document.getElementById('apiKeyHeader');
+    const apiKeyBody = document.getElementById('apiKeyBody');
+    const apiKeyInput = document.getElementById('apiKeyInput');
+    const apiKeySaveBtn = document.getElementById('apiKeySaveBtn');
+
+    // OpenAI models (static list)
+    const OPENAI_MODELS = [
+        { name: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' },
+        { name: 'gpt-4o-mini', label: 'GPT-4o Mini' },
+        { name: 'gpt-4o', label: 'GPT-4o' },
+    ];
+
+    // ---- API Key Toggle ----
+    apiKeyHeader.addEventListener('click', () => {
+        apiKeyHeader.classList.toggle('open');
+        apiKeyBody.classList.toggle('open');
+    });
+
+    apiKeySaveBtn.addEventListener('click', async () => {
+        const key = apiKeyInput.value.trim();
+        if (!key) {
+            showToast('Please enter an API key', 'error');
+            return;
+        }
+        try {
+            const resp = await fetch('/api/settings/apikey', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ api_key: key })
+            });
+            const data = await resp.json();
+            if (resp.ok) {
+                showToast('API key saved successfully', 'success');
+                apiKeyInput.value = '';
+                // Collapse the section
+                apiKeyHeader.classList.remove('open');
+                apiKeyBody.classList.remove('open');
+            } else {
+                showToast(data.detail || 'Failed to save API key', 'error');
+            }
+        } catch (err) {
+            showToast('Error saving API key: ' + err.message, 'error');
+        }
+    });
+
+    // Allow saving with Enter key
+    apiKeyInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            apiKeySaveBtn.click();
+        }
+    });
+
+    // Load files and models on startup
+    window.addEventListener('DOMContentLoaded', () => {
+        loadFiles();
+        loadModelsForProvider();
+    });
+
+    // Provider change handler
+    providerSelect.addEventListener('change', loadModelsForProvider);
+
+    // Refresh button
+    refreshModelsBtn.addEventListener('click', () => {
+        refreshModelsBtn.classList.add('spinning');
+        loadModelsForProvider().finally(() => {
+            setTimeout(() => refreshModelsBtn.classList.remove('spinning'), 300);
+        });
+    });
+
+    // Load models based on selected provider
+    async function loadModelsForProvider() {
+        const provider = providerSelect.value;
+        modelSelect.innerHTML = '<option value="" disabled selected>Loading...</option>';
+
+        if (provider === 'openai') {
+            modelSelect.innerHTML = OPENAI_MODELS.map(m =>
+                `<option value="${m.name}">${m.label}</option>`
+            ).join('');
+            modelStatus.innerHTML = '<span class="status-dot online"></span> Cloud';
+            return;
+        }
+
+        // Ollama: fetch from API
+        try {
+            const resp = await fetch('/api/ollama/models');
+            const data = await resp.json();
+
+            if (data.error) {
+                modelSelect.innerHTML = '<option value="" disabled selected>Ollama offline</option>';
+                modelStatus.innerHTML = '<span class="status-dot offline"></span> Offline';
+                showToast(data.error, 'error');
+                return;
+            }
+
+            if (data.models.length === 0) {
+                modelSelect.innerHTML = '<option value="" disabled selected>No models found</option>';
+                modelStatus.innerHTML = '<span class="status-dot offline"></span> No models';
+                showToast('No chat models found in Ollama. Pull one with: ollama pull llama3.1', 'error');
+                return;
+            }
+
+            modelSelect.innerHTML = data.models.map(m =>
+                `<option value="${m.name}">${m.label}</option>`
+            ).join('');
+            modelStatus.innerHTML = `<span class="status-dot online"></span> ${data.models.length} model${data.models.length > 1 ? 's' : ''}`;
+        } catch (err) {
+            modelSelect.innerHTML = '<option value="" disabled selected>Error</option>';
+            modelStatus.innerHTML = '<span class="status-dot offline"></span> Error';
+            showToast('Could not fetch Ollama models: ' + err.message, 'error');
+        }
+    }
+
+    // Form Query Submission
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const query = input.value.trim();
+        const provider = providerSelect.value;
+        const modelName = modelSelect.value;
+        const smartSearch = smartSearchToggle.checked;
+
+        if (!query) return;
+        if (!modelName) {
+            showToast('Please select a model first', 'error');
+            return;
+        }
+
+        // Add user message
+        addMessage(query, 'user');
+        input.value = '';
+        
+        // UI loading state
+        btnText.style.display = 'none';
+        loader.style.display = 'block';
+        submitBtn.disabled = true;
+
+        try {
+            const response = await fetch('/api/query', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query, model_provider: provider, model_name: modelName, smart_search: smartSearch })
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                addMessage(data.answer, 'bot', data.sources, data.expanded_query);
+            } else {
+                addMessage(`Error: ${data.detail || 'Something went wrong'}`, 'bot');
+            }
+        } catch (error) {
+            addMessage(`Connection error: ${error.message}`, 'bot');
+        } finally {
+            // Restore UI state
+            btnText.style.display = 'block';
+            loader.style.display = 'none';
+            submitBtn.disabled = false;
+            input.focus();
+        }
+    });
+
+    // ----------------------------------------------------
+    // Document Management Logic
+    // ----------------------------------------------------
+
+    // Click upload zone trigger
+    uploadZone.addEventListener('click', () => fileInput.click());
+
+    // File input selection
+    fileInput.addEventListener('change', (e) => {
+        uploadFiles(e.target.files);
+        fileInput.value = ''; // Reset file input
+    });
+
+    // Drag over handlers
+    ['dragenter', 'dragover'].forEach(eventName => {
+        uploadZone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        }, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        uploadZone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+        }, false);
+    });
+
+    // Drop handler
+    uploadZone.addEventListener('drop', (e) => {
+        const dt = e.dataTransfer;
+        uploadFiles(dt.files);
+    });
+
+    // Fetch documents list
+    async function loadFiles() {
+        try {
+            const response = await fetch('/api/files');
+            if (!response.ok) throw new Error("Failed to load documents list");
+            
+            const files = await response.json();
+            fileCount.textContent = files.length;
+
+            if (files.length === 0) {
+                fileList.innerHTML = `<div style="color: var(--text-secondary); text-align: center; margin-top: 2rem; font-size: 0.85rem;">No documents uploaded yet. Add some to get started!</div>`;
+                return;
+            }
+
+            fileList.innerHTML = files.map(file => `
+                <div class="file-item">
+                    <div class="file-info">
+                        <span class="file-name" title="${escapeHtml(file.filename)}">${escapeHtml(file.filename)}</span>
+                        <span class="file-size">${formatBytes(file.size)}</span>
+                    </div>
+                    <button class="delete-btn" onclick="deleteFile('${escapeHtml(file.filename)}')" title="Delete file">
+                        <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                    </button>
+                </div>
+            `).join('');
+
+        } catch (error) {
+            showToast(error.message, 'error');
+            fileList.innerHTML = `<div style="color: #ef4444; text-align: center; margin-top: 2rem; font-size: 0.85rem;">Failed to load files</div>`;
+        }
+    }
+
+    // Upload files sequentially
+    async function uploadFiles(files) {
+        if (files.length === 0) return;
+        
+        let successCount = 0;
+        let failCount = 0;
+
+        for (let file of files) {
+            // Check size limit (5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                showToast(`File ${file.name} exceeds 5MB size limit`, 'error');
+                failCount++;
+                continue;
+            }
+
+            // Check extension
+            const ext = file.name.split('.').pop().toLowerCase();
+            if (ext !== 'txt' && ext !== 'md') {
+                showToast(`File ${file.name} is not a valid text or markdown file`, 'error');
+                failCount++;
+                continue;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                if (response.ok) {
+                    showToast(`Successfully uploaded ${file.name}`, 'success');
+                    successCount++;
+                } else {
+                    showToast(`Failed to upload ${file.name}: ${data.detail || 'Unknown error'}`, 'error');
+                    failCount++;
+                }
+            } catch (err) {
+                showToast(`Error uploading ${file.name}: ${err.message}`, 'error');
+                failCount++;
+            }
+        }
+
+        if (successCount > 0) {
+            loadFiles();
+        }
+    }
+
+    // Delete file
+    async function deleteFile(filename) {
+        if (!confirm(`Are you sure you want to delete "${filename}"?`)) return;
+
+        try {
+            const response = await fetch(`/api/files/${encodeURIComponent(filename)}`, {
+                method: 'DELETE'
+            });
+            const data = await response.json();
+
+            if (response.ok) {
+                showToast(`Successfully deleted ${filename}`, 'success');
+                loadFiles();
+            } else {
+                showToast(`Failed to delete file: ${data.detail || 'Unknown error'}`, 'error');
+            }
+        } catch (err) {
+            showToast(`Error deleting file: ${err.message}`, 'error');
+        }
+    }
+
+    // ----------------------------------------------------
+    // Utility functions
+    // ----------------------------------------------------
+
+    function addMessage(text, sender, sources = null, expandedQuery = "") {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `message ${sender}-message`;
+
+        if (sender === 'bot') {
+            // Render markdown for bot messages
+            const mdDiv = document.createElement('div');
+            mdDiv.className = 'md-content';
+            mdDiv.innerHTML = marked.parse(text);
+            msgDiv.appendChild(mdDiv);
+        } else {
+            msgDiv.textContent = text;
+        }
+
+        // Append sources if available
+        if (sources && sources.length > 0) {
+            const details = document.createElement('details');
+            details.className = 'sources';
+            
+            const summary = document.createElement('summary');
+            summary.textContent = `View Retrieved Context (${sources.length} chunks)`;
+            
+            const content = document.createElement('div');
+            content.className = 'source-content';
+            
+            if (expandedQuery) {
+                const eqDiv = document.createElement('div');
+                eqDiv.style.marginBottom = "1rem";
+                eqDiv.style.paddingBottom = "0.5rem";
+                eqDiv.style.borderBottom = "1px solid rgba(255,255,255,0.1)";
+                eqDiv.innerHTML = `<span style="color: var(--accent); font-weight: bold;">Smart Search Expanded Query:</span><br/>${escapeHtml(expandedQuery)}`;
+                content.appendChild(eqDiv);
+            }
+            
+            sources.forEach((s) => {
+                const chunkDiv = document.createElement('div');
+                chunkDiv.className = 'chunk';
+                chunkDiv.innerHTML = `
+                    <div class="score">Similarity: ${(s.score * 100).toFixed(1)}%</div>
+                    <div>${escapeHtml(s.chunk)}</div>
+                `;
+                content.appendChild(chunkDiv);
+            });
+
+            details.appendChild(summary);
+            details.appendChild(content);
+            msgDiv.appendChild(details);
+        }
+
+        chatArea.appendChild(msgDiv);
+        chatArea.scrollTop = chatArea.scrollHeight;
+    }
+
+    function showToast(message, type = 'success') {
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        
+        const icon = type === 'success' 
+            ? `<svg style="width: 18px; height: 18px; color: var(--success-color);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`
+            : `<svg style="width: 18px; height: 18px; color: #ef4444;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
+        
+        toast.innerHTML = `${icon} <span style="flex-grow: 1;">${escapeHtml(message)}</span>`;
+        toastContainer.appendChild(toast);
+        
+        // Auto-remove toast
+        setTimeout(() => {
+            toast.style.animation = 'slideInRight 0.3s reverse forwards';
+            setTimeout(() => toast.remove(), 300);
+        }, 3500);
+    }
+
+    function formatBytes(bytes, decimals = 1) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const dm = decimals < 0 ? 0 : decimals;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    }
+
+    function escapeHtml(unsafe) {
+        return unsafe
+             .replace(/&/g, "&amp;")
+             .replace(/</g, "&lt;")
+             .replace(/>/g, "&gt;")
+             .replace(/"/g, "&quot;")
+             .replace(/'/g, "&#039;");
+    }
+</script>
+
+</body>
+</html>

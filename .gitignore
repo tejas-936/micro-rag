@@ -1,0 +1,19 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local environments / Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Project caches & sensitive files
+backend/.cache/
+api_key.txt
+.env
+
+# Data folder content (keep folder structure but ignore uploaded files)
+data/*
+!data/.gitkeep
