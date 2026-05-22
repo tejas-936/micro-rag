@@ -1,4 +1,4 @@
-A lightweight, local-first RAG application. This project uses FastAPI, Vanilla HTML/CSS/JavaScript, local embedding models via SentenceTransformers, NumPy for high-performance vector operations, and supports both **OpenAI** and local **Ollama** LLMs.
+A lightweight, local-first RAG application. Uses FastAPI, local embedding models via SentenceTransformers, NumPy for high-performance vector operations, and supports both **OpenAI** and local **Ollama** LLMs.
 
 ---
 
