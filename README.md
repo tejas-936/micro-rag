@@ -1,10 +1,8 @@
-# NumPy RAG Prototype
-
-A lightweight, local-first **Retrieval-Augmented Generation (RAG)** application. This project uses FastAPI, Vanilla HTML/CSS/JavaScript, local embedding models via SentenceTransformers, NumPy for high-performance vector operations, and supports both **OpenAI** and local **Ollama** LLMs.
+A lightweight, local-first RAG application. This project uses FastAPI, Vanilla HTML/CSS/JavaScript, local embedding models via SentenceTransformers, NumPy for high-performance vector operations, and supports both **OpenAI** and local **Ollama** LLMs.
 
 ---
 
-## 🚀 Key Features
+## Key Features
 
 * **Dual LLM Support**: Seamlessly switch between OpenAI (GPT models) and local Ollama models (Llama, Mistral, Qwen, etc.) using a simple dropdown.
 * **Local Embeddings & Vector Store**: Uses `all-MiniLM-L6-v2` locally via SentenceTransformers to generate text embeddings, saving them to a local NumPy cache (`.npy`).
@@ -17,7 +15,7 @@ A lightweight, local-first **Retrieval-Augmented Generation (RAG)** application.
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 * **Backend**: FastAPI (Python), Uvicorn, NumPy, SentenceTransformers, OpenAI SDK, HTTPX
 * **Frontend**: HTML5, Vanilla CSS3 (Glassmorphism design system), Vanilla ES6 JavaScript
@@ -25,7 +23,7 @@ A lightweight, local-first **Retrieval-Augmented Generation (RAG)** application.
 
 ---
 
-## 📋 Installation & Setup
+## Installation & Setup
 
 ### Prerequisites
 * Python 3.8 or higher
@@ -64,7 +62,7 @@ A lightweight, local-first **Retrieval-Augmented Generation (RAG)** application.
 
 ---
 
-## 💡 How It Works (RAG Flow)
+## How It Works (RAG Flow)
 
 ```mermaid
 graph TD
@@ -90,7 +88,7 @@ graph TD
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
 * **OpenAI API Key**: You can provide your key directly in the web UI settings panel (which persists it to `api_key.txt` locally) or set it as an environment variable `OPENAI_API_KEY`.
 * **Local Models**: Ensure your local Ollama server is running (`ollama serve`). The backend automatically queries Ollama to retrieve and populate all available chat models in the dropdown.
